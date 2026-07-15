@@ -190,20 +190,47 @@
     return v < 0 ? 0 : v > 255 ? 255 : v;
   }
 
+  function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+  function downloadViaAnchor(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
   function triggerDownload() {
-    canvasVintage.toBlob((blob) => {
+    canvasVintage.toBlob(async (blob) => {
       if (!blob) {
         setStatus('Impossibile generare il file da scaricare.');
         return;
       }
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `oldshot-vintage-${Date.now()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+
+      const fileName = `oldshot-vintage-${Date.now()}.jpg`;
+      const file = new File([blob], fileName, { type: 'image/jpeg' });
+
+      // On mobile, use the native share sheet so the user can save the photo
+      // straight into their Gallery/Foto app instead of the Downloads folder.
+      const canShareFile = isMobileDevice() && navigator.canShare && navigator.canShare({ files: [file] });
+
+      if (canShareFile) {
+        try {
+          await navigator.share({ files: [file], title: 'OldShot' });
+          setStatus('');
+          return;
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          // Sharing failed for some other reason: fall back to a classic download.
+        }
+      }
+
+      downloadViaAnchor(blob, fileName);
     }, 'image/jpeg', 0.92);
   }
 

@@ -601,6 +601,14 @@ input[type="range"]::-moz-range-thumb {
   flex-wrap: wrap;
 }
 
+.download-hint {
+  display: none;
+  margin: 12px 0 0;
+  text-align: right;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
 .preview-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -762,6 +770,9 @@ canvas {
   }
   .actions-row .btn {
     flex: 1;
+  }
+  .download-hint {
+    display: block;
   }
   .features .section-inner {
     grid-template-columns: 1fr;
