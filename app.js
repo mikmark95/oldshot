@@ -1,128 +1,73 @@
 (() => {
   'use strict';
 
-  const MAX_DIMENSION = 2000;
+  const MAX_DIMENSION = 2000; // cap for full-resolution processing / download
+  const THUMB_MAX = 560; // cap for the fast live-preview thumbnails
+  const MAX_PHOTOS = 20;
 
   const dropzone = document.getElementById('dropzone');
   const fileInput = document.getElementById('file-input');
   const controlsSection = document.getElementById('controls-section');
-  const previewSection = document.getElementById('preview-section');
-  const canvasOriginal = document.getElementById('canvas-original');
-  const canvasVintage = document.getElementById('canvas-vintage');
-  const canvasWork = document.getElementById('canvas-work');
-  const resetBtn = document.getElementById('reset-btn');
-  const downloadBtn = document.getElementById('download-btn');
+  const gallerySection = document.getElementById('gallery-section');
+  const photosGrid = document.getElementById('photos-grid');
+  const photosSummary = document.getElementById('photos-summary');
+  const clearAllBtn = document.getElementById('clear-all-btn');
+  const downloadAllBtn = document.getElementById('download-all-btn');
   const statusMsg = document.getElementById('status-msg');
-  const processingOverlay = document.getElementById('processing-overlay');
   const intensityInput = document.getElementById('intensity');
   const grainInput = document.getElementById('grain');
   const vignetteInput = document.getElementById('vignette');
 
-  const ctxOriginal = canvasOriginal.getContext('2d');
-  const ctxVintage = canvasVintage.getContext('2d');
-  const ctxWork = canvasWork.getContext('2d');
+  // Offscreen canvases used purely as scratch space, never attached to the DOM.
+  const thumbScratchCanvas = document.createElement('canvas');
+  const thumbScratchCtx = thumbScratchCanvas.getContext('2d');
+  const fullScratchCanvas = document.createElement('canvas');
+  const fullScratchCtx = fullScratchCanvas.getContext('2d');
+  const fullOutputCanvas = document.createElement('canvas');
+  const fullOutputCtx = fullOutputCanvas.getContext('2d');
 
-  let sourceImage = null; // holds the resized original ImageData source (as canvas)
+  let photos = [];
+  let nextPhotoId = 0;
   let renderTimer = null;
+  let batchInProgress = false;
 
   function setStatus(msg) {
     statusMsg.textContent = msg || '';
   }
 
-  function setProcessing(isProcessing) {
-    processingOverlay.classList.toggle('hidden', !isProcessing);
+  function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   }
 
-  function showResultUI() {
-    controlsSection.classList.remove('hidden');
-    controlsSection.setAttribute('aria-hidden', 'false');
-    previewSection.classList.remove('hidden');
-    previewSection.setAttribute('aria-hidden', 'false');
+  function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  function resetUI() {
-    controlsSection.classList.add('hidden');
-    controlsSection.setAttribute('aria-hidden', 'true');
-    previewSection.classList.add('hidden');
-    previewSection.setAttribute('aria-hidden', 'true');
-    setStatus('');
-    sourceImage = null;
-    fileInput.value = '';
+  function fitDimensions(width, height, max) {
+    if (width <= max && height <= max) return { width, height };
+    const scale = max / Math.max(width, height);
+    return { width: Math.round(width * scale), height: Math.round(height * scale) };
   }
 
-  function loadImageFromFile(file) {
-    if (!file || !file.type.startsWith('image/')) {
-      setStatus('Seleziona un file immagine valido.');
-      return;
-    }
-
-    setStatus('Caricamento immagine…');
-
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      handleLoadedImage(img);
+  function getEffectSettings() {
+    return {
+      intensity: Number(intensityInput.value) / 100,
+      grain: Number(grainInput.value) / 100,
+      vignette: Number(vignetteInput.value) / 100,
     };
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      setStatus('Impossibile leggere questa immagine. Riprova con un altro file.');
-    };
-    img.src = objectUrl;
   }
 
-  function handleLoadedImage(img) {
-    let { width, height } = img;
-
-    if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-      const scale = MAX_DIMENSION / Math.max(width, height);
-      width = Math.round(width * scale);
-      height = Math.round(height * scale);
-    }
-
-    canvasWork.width = width;
-    canvasWork.height = height;
-    ctxWork.clearRect(0, 0, width, height);
-    ctxWork.drawImage(img, 0, 0, width, height);
-
-    sourceImage = ctxWork.getImageData(0, 0, width, height);
-
-    canvasOriginal.width = width;
-    canvasOriginal.height = height;
-    ctxOriginal.putImageData(sourceImage, 0, 0);
-
-    canvasVintage.width = width;
-    canvasVintage.height = height;
-
-    showResultUI();
-    setStatus('');
-    scheduleRender();
+  function clamp(v) {
+    return v < 0 ? 0 : v > 255 ? 255 : v;
   }
 
-  function scheduleRender() {
-    if (!sourceImage) return;
-    clearTimeout(renderTimer);
-    setProcessing(true);
-    renderTimer = setTimeout(applyVintageEffect, 30);
-  }
+  // Applies the vintage effect (sepia, reduced contrast, grain, vignette)
+  // from a source ImageData onto a target canvas context.
+  function applyVintage(srcImageData, width, height, targetCtx, settings) {
+    const { intensity, grain, vignette } = settings;
+    const src = srcImageData.data;
+    const out = new Uint8ClampedArray(src.length);
 
-  function applyVintageEffect() {
-    if (!sourceImage) {
-      setProcessing(false);
-      return;
-    }
-
-    const { width, height } = sourceImage;
-    const intensity = Number(intensityInput.value) / 100;
-    const grainAmount = Number(grainInput.value) / 100;
-    const vignetteAmount = Number(vignetteInput.value) / 100;
-
-    const imageData = ctxWork.createImageData(width, height);
-    const src = sourceImage.data;
-    const out = imageData.data;
-
-    // Reduced contrast factor (pulls midtones toward gray)
     const contrastFactor = 1 - 0.35 * intensity;
     const midpoint = 128;
 
@@ -132,12 +77,10 @@
       let b = src[i + 2];
       const a = src[i + 3];
 
-      // Reduced contrast
       r = (r - midpoint) * contrastFactor + midpoint;
       g = (g - midpoint) * contrastFactor + midpoint;
       b = (b - midpoint) * contrastFactor + midpoint;
 
-      // Sepia tone
       const sr = r * 0.393 + g * 0.769 + b * 0.189;
       const sg = r * 0.349 + g * 0.686 + b * 0.168;
       const sb = r * 0.272 + g * 0.534 + b * 0.131;
@@ -152,9 +95,8 @@
       out[i + 3] = a;
     }
 
-    // Grain
-    if (grainAmount > 0) {
-      const grainStrength = grainAmount * 45;
+    if (grain > 0) {
+      const grainStrength = grain * 45;
       for (let i = 0; i < out.length; i += 4) {
         const noise = (Math.random() - 0.5) * grainStrength;
         out[i] = clamp(out[i] + noise);
@@ -163,38 +105,260 @@
       }
     }
 
-    ctxWork.putImageData(imageData, 0, 0);
+    targetCtx.canvas.width = width;
+    targetCtx.canvas.height = height;
+    targetCtx.putImageData(new ImageData(out, width, height), 0, 0);
 
-    ctxVintage.clearRect(0, 0, width, height);
-    ctxVintage.drawImage(canvasWork, 0, 0);
-
-    // Vignette
-    if (vignetteAmount > 0) {
+    if (vignette > 0) {
       const cx = width / 2;
       const cy = height / 2;
       const outerRadius = Math.sqrt(cx * cx + cy * cy);
-      const gradient = ctxVintage.createRadialGradient(
-        cx, cy, outerRadius * (1 - vignetteAmount * 0.7) * 0.3,
+      const gradient = targetCtx.createRadialGradient(
+        cx, cy, outerRadius * (1 - vignette * 0.7) * 0.3,
         cx, cy, outerRadius
       );
       gradient.addColorStop(0, 'rgba(0,0,0,0)');
-      gradient.addColorStop(1, `rgba(0,0,0,${0.75 * vignetteAmount})`);
-      ctxVintage.fillStyle = gradient;
-      ctxVintage.fillRect(0, 0, width, height);
+      gradient.addColorStop(1, `rgba(0,0,0,${0.75 * vignette})`);
+      targetCtx.fillStyle = gradient;
+      targetCtx.fillRect(0, 0, width, height);
+    }
+  }
+
+  // --- Photo lifecycle ---
+
+  function loadPhotoFile(file) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        try {
+          const { width: tw, height: th } = fitDimensions(img.naturalWidth, img.naturalHeight, THUMB_MAX);
+          thumbScratchCanvas.width = tw;
+          thumbScratchCanvas.height = th;
+          thumbScratchCtx.clearRect(0, 0, tw, th);
+          thumbScratchCtx.drawImage(img, 0, 0, tw, th);
+          const thumbImageData = thumbScratchCtx.getImageData(0, 0, tw, th);
+          resolve({
+            id: `p${nextPhotoId++}`,
+            file,
+            name: file.name || 'foto',
+            thumbWidth: tw,
+            thumbHeight: th,
+            thumbImageData,
+            showingOriginal: false,
+          });
+        } catch (err) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+      img.src = url;
+    });
+  }
+
+  async function handleFiles(fileList) {
+    const incoming = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
+    if (!incoming.length) {
+      setStatus('Seleziona almeno un file immagine valido.');
+      return;
     }
 
-    setProcessing(false);
+    const room = MAX_PHOTOS - photos.length;
+    if (room <= 0) {
+      setStatus(`Hai già raggiunto il limite di ${MAX_PHOTOS} foto.`);
+      return;
+    }
+
+    const toLoad = incoming.slice(0, room);
+    setStatus('Caricamento foto…');
+
+    const loaded = await Promise.all(toLoad.map(loadPhotoFile));
+    const validPhotos = loaded.filter(Boolean);
+
+    validPhotos.forEach((photo) => {
+      photos.push(photo);
+      createPhotoCard(photo);
+    });
+
+    if (incoming.length > toLoad.length) {
+      setStatus(`Caricate ${validPhotos.length} foto (limite massimo ${MAX_PHOTOS} raggiunto).`);
+    } else if (validPhotos.length < toLoad.length) {
+      setStatus('Alcune immagini non sono state caricate correttamente.');
+    } else {
+      setStatus('');
+    }
+
+    if (validPhotos.length) {
+      showResultUI();
+      updateSummary();
+      scheduleRender();
+    }
   }
 
-  function clamp(v) {
-    return v < 0 ? 0 : v > 255 ? 255 : v;
+  function createPhotoCard(photo) {
+    const card = document.createElement('div');
+    card.className = 'photo-card';
+    card.dataset.id = photo.id;
+    card.title = photo.name;
+
+    const canvasWrap = document.createElement('div');
+    canvasWrap.className = 'photo-card-canvas-wrap';
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'mini-canvas';
+    canvas.width = photo.thumbWidth;
+    canvas.height = photo.thumbHeight;
+    photo.canvasCtx = canvas.getContext('2d');
+    photo.canvasCtx.putImageData(photo.thumbImageData, 0, 0);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'photo-remove';
+    removeBtn.setAttribute('aria-label', 'Rimuovi questa foto');
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', () => removePhoto(photo.id));
+
+    const tag = document.createElement('span');
+    tag.className = 'mini-tag';
+    tag.textContent = 'Vintage';
+    photo.tagEl = tag;
+
+    canvasWrap.append(canvas, removeBtn, tag);
+
+    const footer = document.createElement('div');
+    footer.className = 'photo-card-footer';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'toggle-original-btn';
+    toggleBtn.textContent = 'Originale';
+    toggleBtn.addEventListener('click', () => toggleOriginal(photo));
+    photo.toggleBtn = toggleBtn;
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.type = 'button';
+    downloadBtn.className = 'icon-btn photo-download-btn';
+    downloadBtn.setAttribute('aria-label', 'Scarica questa foto');
+    downloadBtn.title = 'Scarica questa foto';
+    downloadBtn.textContent = '⬇';
+    downloadBtn.addEventListener('click', () => downloadSinglePhoto(photo, downloadBtn));
+
+    footer.append(toggleBtn, downloadBtn);
+
+    card.append(canvasWrap, footer);
+    photosGrid.appendChild(card);
+    photo.cardEl = card;
   }
 
-  function isMobileDevice() {
-    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  function toggleOriginal(photo) {
+    photo.showingOriginal = !photo.showingOriginal;
+    if (photo.showingOriginal) {
+      photo.canvasCtx.canvas.width = photo.thumbWidth;
+      photo.canvasCtx.canvas.height = photo.thumbHeight;
+      photo.canvasCtx.putImageData(photo.thumbImageData, 0, 0);
+      photo.tagEl.textContent = 'Originale';
+      photo.toggleBtn.textContent = 'Vintage';
+    } else {
+      renderCardVintage(photo);
+      photo.tagEl.textContent = 'Vintage';
+      photo.toggleBtn.textContent = 'Originale';
+    }
   }
 
-  function downloadViaAnchor(blob, fileName) {
+  function removePhoto(id) {
+    const idx = photos.findIndex((p) => p.id === id);
+    if (idx === -1) return;
+    const [photo] = photos.splice(idx, 1);
+    photo.cardEl.remove();
+    updateSummary();
+    if (!photos.length) resetUI();
+  }
+
+  function clearAll() {
+    photos = [];
+    photosGrid.innerHTML = '';
+    resetUI();
+  }
+
+  function updateSummary() {
+    const n = photos.length;
+    photosSummary.textContent = n
+      ? `${n} ${n === 1 ? 'foto caricata' : 'foto caricate'} — l'effetto verrà applicato a tutte.`
+      : '';
+  }
+
+  function showResultUI() {
+    controlsSection.classList.remove('hidden');
+    controlsSection.setAttribute('aria-hidden', 'false');
+    gallerySection.classList.remove('hidden');
+    gallerySection.setAttribute('aria-hidden', 'false');
+  }
+
+  function resetUI() {
+    controlsSection.classList.add('hidden');
+    controlsSection.setAttribute('aria-hidden', 'true');
+    gallerySection.classList.add('hidden');
+    gallerySection.setAttribute('aria-hidden', 'true');
+    setStatus('');
+    fileInput.value = '';
+  }
+
+  // --- Live thumbnail rendering ---
+
+  function renderCardVintage(photo) {
+    applyVintage(photo.thumbImageData, photo.thumbWidth, photo.thumbHeight, photo.canvasCtx, getEffectSettings());
+  }
+
+  function renderAllCards() {
+    const settings = getEffectSettings();
+    photos.forEach((photo) => {
+      if (!photo.showingOriginal) {
+        applyVintage(photo.thumbImageData, photo.thumbWidth, photo.thumbHeight, photo.canvasCtx, settings);
+      }
+    });
+  }
+
+  function scheduleRender() {
+    if (!photos.length) return;
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(renderAllCards, 30);
+  }
+
+  // --- Full-resolution rendering for downloads ---
+
+  function renderFullResBlob(photo, settings) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(photo.file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        try {
+          const { width, height } = fitDimensions(img.naturalWidth, img.naturalHeight, MAX_DIMENSION);
+          fullScratchCanvas.width = width;
+          fullScratchCanvas.height = height;
+          fullScratchCtx.clearRect(0, 0, width, height);
+          fullScratchCtx.drawImage(img, 0, 0, width, height);
+          const srcData = fullScratchCtx.getImageData(0, 0, width, height);
+
+          applyVintage(srcData, width, height, fullOutputCtx, settings);
+          fullOutputCanvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.92);
+        } catch (err) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+      img.src = url;
+    });
+  }
+
+  function downloadBlob(blob, fileName) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -205,33 +369,99 @@
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
-  function triggerDownload() {
-    canvasVintage.toBlob(async (blob) => {
-      if (!blob) {
-        setStatus('Impossibile generare il file da scaricare.');
+  async function shareOrDownload(blob, fileName) {
+    const file = new File([blob], fileName, { type: 'image/jpeg' });
+    const canShareFile = isMobileDevice() && navigator.canShare && navigator.canShare({ files: [file] });
+
+    if (canShareFile) {
+      try {
+        await navigator.share({ files: [file], title: 'OldShot' });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+        // fall through to classic download
+      }
+    }
+
+    downloadBlob(blob, fileName);
+  }
+
+  async function downloadSinglePhoto(photo, buttonEl) {
+    if (buttonEl) buttonEl.disabled = true;
+    setStatus('Elaborazione foto…');
+
+    const blob = await renderFullResBlob(photo, getEffectSettings());
+    if (!blob) {
+      setStatus('Impossibile elaborare questa foto.');
+      if (buttonEl) buttonEl.disabled = false;
+      return;
+    }
+
+    await shareOrDownload(blob, `oldshot-vintage-${Date.now()}.jpg`);
+    setStatus('');
+    if (buttonEl) buttonEl.disabled = false;
+  }
+
+  function setControlsDisabled(disabled) {
+    downloadAllBtn.disabled = disabled;
+    clearAllBtn.disabled = disabled;
+  }
+
+  async function downloadAllPhotos() {
+    if (!photos.length || batchInProgress) return;
+    batchInProgress = true;
+    setControlsDisabled(true);
+
+    const settings = getEffectSettings();
+    const total = photos.length;
+
+    try {
+      if (isMobileDevice() && navigator.canShare && navigator.share) {
+        const files = [];
+        for (let i = 0; i < total; i++) {
+          setStatus(`Elaborazione foto ${i + 1} di ${total}…`);
+          const blob = await renderFullResBlob(photos[i], settings);
+          if (blob) files.push(new File([blob], `oldshot-vintage-${Date.now()}-${i + 1}.jpg`, { type: 'image/jpeg' }));
+        }
+
+        if (files.length && navigator.canShare({ files })) {
+          try {
+            setStatus('Apertura condivisione…');
+            await navigator.share({ files, title: 'OldShot' });
+            setStatus('');
+            return;
+          } catch (err) {
+            if (err && err.name === 'AbortError') {
+              setStatus('');
+              return;
+            }
+            // fall through to per-file fallback below
+          }
+        }
+
+        for (let i = 0; i < files.length; i++) {
+          downloadBlob(files[i], files[i].name);
+          await delay(350);
+        }
+        setStatus(`${files.length} foto scaricate.`);
         return;
       }
 
-      const fileName = `oldshot-vintage-${Date.now()}.jpg`;
-      const file = new File([blob], fileName, { type: 'image/jpeg' });
-
-      // On mobile, use the native share sheet so the user can save the photo
-      // straight into their Gallery/Foto app instead of the Downloads folder.
-      const canShareFile = isMobileDevice() && navigator.canShare && navigator.canShare({ files: [file] });
-
-      if (canShareFile) {
-        try {
-          await navigator.share({ files: [file], title: 'OldShot' });
-          setStatus('');
-          return;
-        } catch (err) {
-          if (err && err.name === 'AbortError') return;
-          // Sharing failed for some other reason: fall back to a classic download.
+      let count = 0;
+      for (let i = 0; i < total; i++) {
+        setStatus(`Scaricamento foto ${i + 1} di ${total}…`);
+        const blob = await renderFullResBlob(photos[i], settings);
+        if (blob) {
+          downloadBlob(blob, `oldshot-vintage-${Date.now()}-${i + 1}.jpg`);
+          count++;
+          await delay(350);
         }
       }
-
-      downloadViaAnchor(blob, fileName);
-    }, 'image/jpeg', 0.92);
+      setStatus(`${count} foto scaricate.`);
+    } finally {
+      batchInProgress = false;
+      setControlsDisabled(false);
+    }
   }
 
   // --- Event wiring ---
@@ -245,8 +475,9 @@
   });
 
   fileInput.addEventListener('change', (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) loadImageFromFile(file);
+    const files = e.target.files;
+    if (files && files.length) handleFiles(files);
+    fileInput.value = '';
   });
 
   ['dragenter', 'dragover'].forEach((evt) => {
@@ -269,16 +500,16 @@
     e.preventDefault();
     e.stopPropagation();
     dropzone.classList.remove('dragover');
-    const file = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (file) loadImageFromFile(file);
+    const files = e.dataTransfer.files;
+    if (files && files.length) handleFiles(files);
   });
 
   [intensityInput, grainInput, vignetteInput].forEach((input) => {
     input.addEventListener('input', scheduleRender);
   });
 
-  resetBtn.addEventListener('click', resetUI);
-  downloadBtn.addEventListener('click', triggerDownload);
+  clearAllBtn.addEventListener('click', clearAll);
+  downloadAllBtn.addEventListener('click', downloadAllPhotos);
 
   // --- Scroll reveal for landing page sections ---
 

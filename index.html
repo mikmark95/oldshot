@@ -34,9 +34,9 @@
         <div class="hero-copy">
           <p class="eyebrow">Effetto vintage, zero installazioni</p>
           <h1>Ogni foto merita<br><span class="hero-highlight">un'anima d'altri tempi</span></h1>
-          <p class="hero-sub">Carica uno scatto e trasformalo in un ricordo vintage in tempo reale: seppia, grana e vignettatura regolabili, tutto elaborato nel tuo browser — le tue foto non lasciano mai il dispositivo.</p>
+          <p class="hero-sub">Carica una o più foto e trasformale in ricordi vintage in tempo reale: seppia, grana e vignettatura regolabili, applicate a tutte le foto in un colpo solo — tutto elaborato nel tuo browser, senza mai lasciare il dispositivo.</p>
           <div class="hero-actions">
-            <a href="#app" class="btn btn-primary btn-lg">📤 Carica una foto</a>
+            <a href="#app" class="btn btn-primary btn-lg">📤 Carica le foto</a>
             <a href="#how" class="btn btn-ghost btn-lg">Come funziona</a>
           </div>
           <ul class="hero-trust">
@@ -103,18 +103,18 @@
         <ol class="steps">
           <li class="step reveal">
             <span class="step-num">1</span>
-            <h3>Carica la foto</h3>
-            <p>Trascinala nell'area dedicata oppure scattala direttamente dal tuo telefono.</p>
+            <h3>Carica le foto</h3>
+            <p>Trascinane una o più nell'area dedicata oppure scegline diverse dalla galleria del telefono.</p>
           </li>
           <li class="step reveal">
             <span class="step-num">2</span>
             <h3>Personalizza l'effetto</h3>
-            <p>Regola seppia, grana e vignettatura con gli slider finché il risultato ti convince.</p>
+            <p>Regola seppia, grana e vignettatura con gli slider: le modifiche si applicano a tutte le foto in serie.</p>
           </li>
           <li class="step reveal">
             <span class="step-num">3</span>
-            <h3>Scarica lo scatto</h3>
-            <p>Un tocco per salvare la foto vintage, pronta per essere condivisa. Funziona su iOS e Android.</p>
+            <h3>Scarica tutto</h3>
+            <p>Un tocco per salvare tutte le foto vintage in una volta, pronte per essere condivise. Funziona su iOS e Android.</p>
           </li>
         </ol>
       </div>
@@ -123,24 +123,25 @@
     <section class="app-section" id="app">
       <div class="section-inner app-inner">
         <h2 class="section-title reveal">Prova OldShot ora</h2>
-        <p class="section-sub reveal">Carica una foto qui sotto e guarda l'effetto vintage prendere vita.</p>
+        <p class="section-sub reveal">Carica una o più foto qui sotto: le stesse impostazioni verranno applicate in serie a tutte.</p>
 
         <div class="app-shell reveal">
           <section id="upload-section" class="card">
-            <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Carica una foto: tocca per scegliere un file o trascinalo qui">
-              <input type="file" id="file-input" accept="image/*" hidden>
+            <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Carica una o più foto: tocca per scegliere i file o trascinali qui">
+              <input type="file" id="file-input" accept="image/*" multiple hidden>
               <div class="dropzone-content">
                 <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                   <path d="M12 16V4M12 4L7 9M12 4l5 5" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <p class="dropzone-title">Trascina una foto qui</p>
-                <p class="dropzone-sub">oppure tocca per scattare / scegliere dalla galleria</p>
+                <p class="dropzone-title">Trascina una o più foto qui</p>
+                <p class="dropzone-sub">oppure tocca per scegliere più foto dalla galleria o scattarne una nuova</p>
               </div>
             </div>
           </section>
 
           <section id="controls-section" class="card hidden" aria-hidden="true">
+            <p id="photos-summary" class="photos-summary"></p>
             <div class="controls-row">
               <div class="control">
                 <label for="intensity">Intensità effetto</label>
@@ -156,28 +157,14 @@
               </div>
             </div>
             <div class="actions-row">
-              <button id="reset-btn" class="btn btn-ghost" type="button">Nuova foto</button>
-              <button id="download-btn" class="btn btn-primary" type="button">⬇ Scarica</button>
+              <button id="clear-all-btn" class="btn btn-ghost" type="button">Rimuovi tutte</button>
+              <button id="download-all-btn" class="btn btn-primary" type="button">⬇ Scarica tutte</button>
             </div>
-            <p class="download-hint">Su smartphone, nel foglio di condivisione scegli “Salva immagine” o “Salva in Foto” per averla direttamente in Galleria.</p>
+            <p class="download-hint">Su smartphone, nel foglio di condivisione scegli “Salva immagini” o “Salva in Foto” per averle direttamente in Galleria.</p>
           </section>
 
-          <section id="preview-section" class="preview-grid hidden" aria-hidden="true">
-            <div class="preview-pane">
-              <h2>Originale</h2>
-              <div class="canvas-wrap">
-                <canvas id="canvas-original"></canvas>
-              </div>
-            </div>
-            <div class="preview-pane">
-              <h2>Vintage</h2>
-              <div class="canvas-wrap">
-                <canvas id="canvas-vintage"></canvas>
-                <div id="processing-overlay" class="processing-overlay hidden">
-                  <div class="spinner"></div>
-                </div>
-              </div>
-            </div>
+          <section id="gallery-section" class="hidden" aria-hidden="true">
+            <div id="photos-grid" class="photos-grid"></div>
           </section>
 
           <p id="status-msg" class="status-msg" role="status" aria-live="polite"></p>
@@ -196,8 +183,6 @@
       <a href="https://github.com/mikmark95/oldshot" class="footer-link" target="_blank" rel="noopener">Codice sorgente su GitHub</a>
     </div>
   </footer>
-
-  <canvas id="canvas-work" hidden></canvas>
 
   <script src="app.js"></script>
 </body>
