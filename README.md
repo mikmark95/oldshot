@@ -4,13 +4,14 @@ App web statica (HTML/CSS/JS puro, nessuna dipendenza) che applica un effetto vi
 
 **Sito pubblicato:** https://mikmark95.github.io/oldshot/
 
-**Versione attuale:** v1.4.0 — vedi il [changelog](#changelog) qui sotto.
+**Versione attuale:** v1.5.0 — vedi il [changelog](#changelog) qui sotto.
 
 ## Funzionalità
 
 - Upload multiplo via drag-and-drop o selezione file (anche più foto insieme), con supporto fotocamera/galleria su mobile
 - Ridimensionamento automatico delle immagini grandi (lato massimo 2000px) prima dell'elaborazione
 - Anteprima originale/modificata per ogni foto, applicata in serie a tutto il batch
+- Anteprima a schermo intero (lightbox) per ogni foto, con navigazione tra gli scatti e swipe su mobile
 - Effetto vintage regolabile: seppia o bianco e nero, contrasto ridotto, vignettatura, grana
 - Download (singolo o di tutte le foto insieme), con salvataggio diretto in Galleria/Foto su iOS e Android tramite Web Share API
 - Elaborazione 100% locale: le immagini non vengono mai caricate su un server
@@ -39,6 +40,7 @@ HTML5, CSS3, JavaScript vanilla (ES6+), Canvas API. Nessun framework, nessuna bu
 
 Versionamento [SemVer](https://semver.org/lang/it/) (`MAJOR.MINOR.PATCH`): il numero avanza a ogni aggiornamento pubblicato — `PATCH` per correzioni, `MINOR` per nuove funzionalità, `MAJOR` per cambi che rompono la compatibilità.
 
+- **v1.5.0** — Aggiunta l'anteprima a schermo intero (lightbox) delle foto, con navigazione e swipe su mobile
 - **v1.4.0** — Aggiunto il selettore di stile Seppia / Bianco e nero
 - **v1.3.1** — Corretto il download multiplo su iPad (ora usa il foglio di condivisione nativo come su iPhone)
 - **v1.3.0** — Supporto al caricamento e all'elaborazione in serie di più foto contemporaneamente
