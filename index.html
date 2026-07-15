@@ -4,81 +4,197 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>OldShot — Effetto Vintage per le tue foto</title>
-<meta name="description" content="Trasforma le tue foto in scatti vintage direttamente nel browser. Nessun upload sul server, tutto elaborato sul tuo dispositivo.">
+<meta name="description" content="Trasforma le tue foto in scatti vintage direttamente nel browser: seppia, grana e vignettatura in tempo reale. Nessun upload sul server, tutto elaborato sul tuo dispositivo.">
+<meta name="theme-color" content="#a85c32">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📷</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app">
-    <header class="site-header">
-      <div class="brand">
+
+  <header class="site-header" id="top">
+    <div class="header-inner">
+      <a href="#top" class="brand">
+        <span class="brand-icon" aria-hidden="true">📷</span>
+        <span class="brand-name">OldShot</span>
+      </a>
+      <nav class="site-nav" aria-label="Navigazione principale">
+        <a href="#how">Come funziona</a>
+        <a href="#app" class="nav-cta">Prova ora</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <p class="eyebrow">Effetto vintage, zero installazioni</p>
+          <h1>Ogni foto merita<br><span class="hero-highlight">un'anima d'altri tempi</span></h1>
+          <p class="hero-sub">Carica uno scatto e trasformalo in un ricordo vintage in tempo reale: seppia, grana e vignettatura regolabili, tutto elaborato nel tuo browser — le tue foto non lasciano mai il dispositivo.</p>
+          <div class="hero-actions">
+            <a href="#app" class="btn btn-primary btn-lg">📤 Carica una foto</a>
+            <a href="#how" class="btn btn-ghost btn-lg">Come funziona</a>
+          </div>
+          <ul class="hero-trust">
+            <li>🔒 100% locale</li>
+            <li>📱 Ottimizzato mobile</li>
+            <li>⚡ Risultato istantaneo</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+          <div class="polaroid p1">
+            <div class="photo photo-color"></div>
+          </div>
+          <div class="polaroid p2">
+            <div class="photo photo-sepia"></div>
+          </div>
+          <div class="polaroid p3">
+            <div class="photo photo-vintage">
+              <div class="grain-overlay"></div>
+            </div>
+            <span class="polaroid-caption">estate '78</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features" id="features">
+      <div class="section-inner">
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke-linecap="round"/></svg>
+          </div>
+          <h3>100% privato</h3>
+          <p>Le tue foto vengono elaborate interamente nel browser: nessun upload, nessun server, nessuna traccia.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2" stroke-linecap="round"/></svg>
+          </div>
+          <h3>Pensato per il mobile</h3>
+          <p>Scatta al volo o scegli dalla galleria: layout impilato, touch-friendly, veloce anche in 4G.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h10M4 12h16M4 18h7" stroke-linecap="round"/><circle cx="17" cy="6" r="2"/><circle cx="9" cy="18" r="2"/></svg>
+          </div>
+          <h3>Effetto regolabile</h3>
+          <p>Intensità, grana e vignettatura: dosa lo stile vintage esattamente come piace a te.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" stroke-linejoin="round" stroke-linecap="round"/></svg>
+          </div>
+          <h3>Istantaneo</h3>
+          <p>Rendering via Canvas API: il risultato appare in una frazione di secondo, senza attese.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="how" id="how">
+      <div class="section-inner">
+        <h2 class="section-title reveal">Come funziona</h2>
+        <p class="section-sub reveal">Tre passaggi, nessun account, nessuna app da installare.</p>
+        <ol class="steps">
+          <li class="step reveal">
+            <span class="step-num">1</span>
+            <h3>Carica la foto</h3>
+            <p>Trascinala nell'area dedicata oppure scattala direttamente dal tuo telefono.</p>
+          </li>
+          <li class="step reveal">
+            <span class="step-num">2</span>
+            <h3>Personalizza l'effetto</h3>
+            <p>Regola seppia, grana e vignettatura con gli slider finché il risultato ti convince.</p>
+          </li>
+          <li class="step reveal">
+            <span class="step-num">3</span>
+            <h3>Scarica lo scatto</h3>
+            <p>Un tocco per salvare la foto vintage, pronta per essere condivisa. Funziona su iOS e Android.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="app-section" id="app">
+      <div class="section-inner app-inner">
+        <h2 class="section-title reveal">Prova OldShot ora</h2>
+        <p class="section-sub reveal">Carica una foto qui sotto e guarda l'effetto vintage prendere vita.</p>
+
+        <div class="app-shell reveal">
+          <section id="upload-section" class="card">
+            <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Carica una foto: tocca per scegliere un file o trascinalo qui">
+              <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
+              <div class="dropzone-content">
+                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <path d="M12 16V4M12 4L7 9M12 4l5 5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <p class="dropzone-title">Trascina una foto qui</p>
+                <p class="dropzone-sub">oppure tocca per scattare / scegliere dalla galleria</p>
+              </div>
+            </div>
+          </section>
+
+          <section id="controls-section" class="card hidden" aria-hidden="true">
+            <div class="controls-row">
+              <div class="control">
+                <label for="intensity">Intensità effetto</label>
+                <input type="range" id="intensity" min="0" max="100" value="75">
+              </div>
+              <div class="control">
+                <label for="grain">Grana</label>
+                <input type="range" id="grain" min="0" max="100" value="40">
+              </div>
+              <div class="control">
+                <label for="vignette">Vignettatura</label>
+                <input type="range" id="vignette" min="0" max="100" value="55">
+              </div>
+            </div>
+            <div class="actions-row">
+              <button id="reset-btn" class="btn btn-ghost" type="button">Nuova foto</button>
+              <button id="download-btn" class="btn btn-primary" type="button">⬇ Scarica</button>
+            </div>
+          </section>
+
+          <section id="preview-section" class="preview-grid hidden" aria-hidden="true">
+            <div class="preview-pane">
+              <h2>Originale</h2>
+              <div class="canvas-wrap">
+                <canvas id="canvas-original"></canvas>
+              </div>
+            </div>
+            <div class="preview-pane">
+              <h2>Vintage</h2>
+              <div class="canvas-wrap">
+                <canvas id="canvas-vintage"></canvas>
+                <div id="processing-overlay" class="processing-overlay hidden">
+                  <div class="spinner"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <p id="status-msg" class="status-msg" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="section-inner footer-inner">
+      <div class="brand footer-brand">
         <span class="brand-icon" aria-hidden="true">📷</span>
         <span class="brand-name">OldShot</span>
       </div>
-      <p class="tagline">Dai un'anima vintage ai tuoi scatti, tutto nel browser</p>
-    </header>
-
-    <main>
-      <section id="upload-section" class="card">
-        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Carica una foto: tocca per scegliere un file o trascinalo qui">
-          <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
-          <div class="dropzone-content">
-            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <path d="M12 16V4M12 4L7 9M12 4l5 5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p class="dropzone-title">Trascina una foto qui</p>
-            <p class="dropzone-sub">oppure tocca per scattare / scegliere dalla galleria</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="controls-section" class="card hidden" aria-hidden="true">
-        <div class="controls-row">
-          <div class="control">
-            <label for="intensity">Intensità effetto</label>
-            <input type="range" id="intensity" min="0" max="100" value="75">
-          </div>
-          <div class="control">
-            <label for="grain">Grana</label>
-            <input type="range" id="grain" min="0" max="100" value="40">
-          </div>
-          <div class="control">
-            <label for="vignette">Vignettatura</label>
-            <input type="range" id="vignette" min="0" max="100" value="55">
-          </div>
-        </div>
-        <div class="actions-row">
-          <button id="reset-btn" class="btn btn-ghost" type="button">Nuova foto</button>
-          <button id="download-btn" class="btn btn-primary" type="button">⬇ Scarica</button>
-        </div>
-      </section>
-
-      <section id="preview-section" class="preview-grid hidden" aria-hidden="true">
-        <div class="preview-pane">
-          <h2>Originale</h2>
-          <div class="canvas-wrap">
-            <canvas id="canvas-original"></canvas>
-          </div>
-        </div>
-        <div class="preview-pane">
-          <h2>Vintage</h2>
-          <div class="canvas-wrap">
-            <canvas id="canvas-vintage"></canvas>
-            <div id="processing-overlay" class="processing-overlay hidden">
-              <div class="spinner"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <p id="status-msg" class="status-msg" role="status" aria-live="polite"></p>
-    </main>
-
-    <footer class="site-footer">
       <p>Elaborazione 100% locale nel browser — le tue foto non lasciano mai il dispositivo.</p>
-    </footer>
-  </div>
+      <a href="https://github.com/mikmark95/oldshot" class="footer-link" target="_blank" rel="noopener">Codice sorgente su GitHub</a>
+    </div>
+  </footer>
 
   <canvas id="canvas-work" hidden></canvas>
 
