@@ -4,7 +4,7 @@ App web statica (HTML/CSS/JS puro, nessuna dipendenza) che applica un effetto vi
 
 **Sito pubblicato:** https://mikmark95.github.io/oldshot/
 
-**Versione attuale:** v1.5.0 — vedi il [changelog](#changelog) qui sotto.
+**Versione attuale:** v1.6.0 — vedi il [changelog](#changelog) qui sotto.
 
 ## Funzionalità
 
@@ -40,6 +40,7 @@ HTML5, CSS3, JavaScript vanilla (ES6+), Canvas API. Nessun framework, nessuna bu
 
 Versionamento [SemVer](https://semver.org/lang/it/) (`MAJOR.MINOR.PATCH`): il numero avanza a ogni aggiornamento pubblicato — `PATCH` per correzioni, `MINOR` per nuove funzionalità, `MAJOR` per cambi che rompono la compatibilità.
 
+- **v1.6.0** — Aggiunto il numero di versione e il credito dello sviluppatore nell'header della landing page
 - **v1.5.0** — Aggiunta l'anteprima a schermo intero (lightbox) delle foto, con navigazione e swipe su mobile
 - **v1.4.0** — Aggiunto il selettore di stile Seppia / Bianco e nero
 - **v1.3.1** — Corretto il download multiplo su iPad (ora usa il foglio di condivisione nativo come su iPhone)
