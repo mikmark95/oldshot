@@ -3,6 +3,7 @@
 
   const MAX_DIMENSION = 2000; // cap for full-resolution processing / download
   const THUMB_MAX = 560; // cap for the fast live-preview thumbnails
+  const LIGHTBOX_MAX = 1600; // cap for the fullscreen preview
   const MAX_PHOTOS = 20;
 
   const dropzone = document.getElementById('dropzone');
@@ -19,6 +20,15 @@
   const vignetteInput = document.getElementById('vignette');
   const styleSepiaBtn = document.getElementById('style-sepia-btn');
   const styleBwBtn = document.getElementById('style-bw-btn');
+  const lightbox = document.getElementById('lightbox');
+  const lightboxStage = document.getElementById('lightbox-stage');
+  const lightboxCanvas = document.getElementById('lightbox-canvas');
+  const lightboxLoading = document.getElementById('lightbox-loading');
+  const lightboxCloseBtn = document.getElementById('lightbox-close');
+  const lightboxPrevBtn = document.getElementById('lightbox-prev');
+  const lightboxNextBtn = document.getElementById('lightbox-next');
+  const lightboxToggleBtn = document.getElementById('lightbox-toggle-btn');
+  const lightboxDownloadBtn = document.getElementById('lightbox-download-btn');
 
   // Offscreen canvases used purely as scratch space, never attached to the DOM.
   const thumbScratchCanvas = document.createElement('canvas');
@@ -27,12 +37,17 @@
   const fullScratchCtx = fullScratchCanvas.getContext('2d');
   const fullOutputCanvas = document.createElement('canvas');
   const fullOutputCtx = fullOutputCanvas.getContext('2d');
+  const lightboxScratchCanvas = document.createElement('canvas');
+  const lightboxScratchCtx = lightboxScratchCanvas.getContext('2d');
+  const lightboxCtx = lightboxCanvas.getContext('2d');
 
   let photos = [];
   let nextPhotoId = 0;
   let renderTimer = null;
   let batchInProgress = false;
   let colorMode = 'sepia'; // 'sepia' | 'bw'
+  let lightboxIndex = -1;
+  let lightboxRenderToken = 0;
 
   function setStatus(msg) {
     statusMsg.textContent = msg || '';
@@ -57,6 +72,22 @@
     return { width: Math.round(width * scale), height: Math.round(height * scale) };
   }
 
+  function loadImageElement(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('image load failed'));
+      };
+      img.src = url;
+    });
+  }
+
   function getEffectSettings() {
     return {
       intensity: Number(intensityInput.value) / 100,
@@ -72,6 +103,7 @@
     styleSepiaBtn.classList.toggle('active', mode === 'sepia');
     styleBwBtn.classList.toggle('active', mode === 'bw');
     renderAllCards();
+    if (lightboxIndex !== -1 && !photos[lightboxIndex].showingOriginal) renderLightboxPhoto();
   }
 
   function clamp(v) {
@@ -236,8 +268,24 @@
     canvas.className = 'mini-canvas';
     canvas.width = photo.thumbWidth;
     canvas.height = photo.thumbHeight;
+    canvas.setAttribute('role', 'button');
+    canvas.setAttribute('tabindex', '0');
+    canvas.setAttribute('aria-label', 'Ingrandisci questa foto a schermo intero');
     photo.canvasCtx = canvas.getContext('2d');
     photo.canvasCtx.putImageData(photo.thumbImageData, 0, 0);
+
+    const openThisLightbox = () => openLightbox(photo.id);
+    canvas.addEventListener('click', openThisLightbox);
+    canvas.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openThisLightbox();
+      }
+    });
+
+    const zoomHint = document.createElement('span');
+    zoomHint.className = 'zoom-hint';
+    zoomHint.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 21l-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 8v6M8 11h6" stroke-linecap="round"/></svg>';
 
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
@@ -251,7 +299,7 @@
     tag.textContent = 'Vintage';
     photo.tagEl = tag;
 
-    canvasWrap.append(canvas, removeBtn, tag);
+    canvasWrap.append(canvas, removeBtn, tag, zoomHint);
 
     const footer = document.createElement('div');
     footer.className = 'photo-card-footer';
@@ -278,8 +326,7 @@
     photo.cardEl = card;
   }
 
-  function toggleOriginal(photo) {
-    photo.showingOriginal = !photo.showingOriginal;
+  function updateCardView(photo) {
     if (photo.showingOriginal) {
       photo.canvasCtx.canvas.width = photo.thumbWidth;
       photo.canvasCtx.canvas.height = photo.thumbHeight;
@@ -293,7 +340,19 @@
     }
   }
 
+  function toggleOriginal(photo) {
+    photo.showingOriginal = !photo.showingOriginal;
+    updateCardView(photo);
+    if (lightboxIndex !== -1 && photos[lightboxIndex] === photo) {
+      renderLightboxPhoto();
+    }
+  }
+
   function removePhoto(id) {
+    // The lightbox overlay covers the grid while open, so its remove button
+    // can't be reached; closing defensively here just guards future call sites.
+    if (lightboxIndex !== -1) closeLightbox();
+
     const idx = photos.findIndex((p) => p.id === id);
     if (idx === -1) return;
     const [photo] = photos.splice(idx, 1);
@@ -306,6 +365,7 @@
     photos = [];
     photosGrid.innerHTML = '';
     resetUI();
+    closeLightbox();
   }
 
   function updateSummary() {
@@ -349,7 +409,10 @@
   function scheduleRender() {
     if (!photos.length) return;
     clearTimeout(renderTimer);
-    renderTimer = setTimeout(renderAllCards, 30);
+    renderTimer = setTimeout(() => {
+      renderAllCards();
+      if (lightboxIndex !== -1 && !photos[lightboxIndex].showingOriginal) renderLightboxPhoto();
+    }, 30);
   }
 
   // --- Full-resolution rendering for downloads ---
@@ -424,6 +487,88 @@
     await shareOrDownload(blob, `oldshot-vintage-${Date.now()}.jpg`);
     setStatus('');
     if (buttonEl) buttonEl.disabled = false;
+  }
+
+  // --- Fullscreen lightbox ---
+
+  function updateLightboxNavVisibility() {
+    const multi = photos.length > 1;
+    lightboxPrevBtn.classList.toggle('hidden', !multi);
+    lightboxNextBtn.classList.toggle('hidden', !multi);
+  }
+
+  function openLightbox(photoId) {
+    const idx = photos.findIndex((p) => p.id === photoId);
+    if (idx === -1) return;
+    lightboxIndex = idx;
+    lightbox.classList.remove('hidden');
+    lightbox.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('lightbox-open');
+    updateLightboxNavVisibility();
+    renderLightboxPhoto();
+  }
+
+  function closeLightbox() {
+    if (lightboxIndex === -1) return;
+    lightboxIndex = -1;
+    lightboxRenderToken++;
+    lightbox.classList.add('hidden');
+    lightbox.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('lightbox-open');
+  }
+
+  function lightboxNext() {
+    if (photos.length < 2) return;
+    lightboxIndex = (lightboxIndex + 1) % photos.length;
+    renderLightboxPhoto();
+  }
+
+  function lightboxPrev() {
+    if (photos.length < 2) return;
+    lightboxIndex = (lightboxIndex - 1 + photos.length) % photos.length;
+    renderLightboxPhoto();
+  }
+
+  async function renderLightboxPhoto() {
+    const photo = photos[lightboxIndex];
+    if (!photo) return;
+
+    lightboxToggleBtn.textContent = photo.showingOriginal ? 'Vintage' : 'Originale';
+    lightboxLoading.classList.remove('hidden');
+
+    const token = ++lightboxRenderToken;
+    const settings = getEffectSettings();
+
+    let img;
+    try {
+      img = await loadImageElement(photo.file);
+    } catch (err) {
+      if (token === lightboxRenderToken) {
+        lightboxLoading.classList.add('hidden');
+        setStatus('Impossibile caricare l\'anteprima di questa foto.');
+      }
+      return;
+    }
+
+    if (token !== lightboxRenderToken) return; // closed or navigated away meanwhile
+
+    const { width, height } = fitDimensions(img.naturalWidth, img.naturalHeight, LIGHTBOX_MAX);
+
+    if (photo.showingOriginal) {
+      lightboxCanvas.width = width;
+      lightboxCanvas.height = height;
+      lightboxCtx.clearRect(0, 0, width, height);
+      lightboxCtx.drawImage(img, 0, 0, width, height);
+    } else {
+      lightboxScratchCanvas.width = width;
+      lightboxScratchCanvas.height = height;
+      lightboxScratchCtx.clearRect(0, 0, width, height);
+      lightboxScratchCtx.drawImage(img, 0, 0, width, height);
+      const srcData = lightboxScratchCtx.getImageData(0, 0, width, height);
+      applyVintage(srcData, width, height, lightboxCtx, settings);
+    }
+
+    lightboxLoading.classList.add('hidden');
   }
 
   function setControlsDisabled(disabled) {
@@ -537,6 +682,44 @@
 
   clearAllBtn.addEventListener('click', clearAll);
   downloadAllBtn.addEventListener('click', downloadAllPhotos);
+
+  lightboxCloseBtn.addEventListener('click', closeLightbox);
+  lightboxPrevBtn.addEventListener('click', lightboxPrev);
+  lightboxNextBtn.addEventListener('click', lightboxNext);
+
+  lightbox.addEventListener('click', (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+
+  lightboxToggleBtn.addEventListener('click', () => {
+    const photo = photos[lightboxIndex];
+    if (photo) toggleOriginal(photo);
+  });
+
+  lightboxDownloadBtn.addEventListener('click', () => {
+    const photo = photos[lightboxIndex];
+    if (photo) downloadSinglePhoto(photo, lightboxDownloadBtn);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (lightboxIndex === -1) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowRight') lightboxNext();
+    else if (e.key === 'ArrowLeft') lightboxPrev();
+  });
+
+  let lightboxTouchStartX = null;
+  lightboxStage.addEventListener('touchstart', (e) => {
+    lightboxTouchStartX = e.touches[0].clientX;
+  }, { passive: true });
+  lightboxStage.addEventListener('touchend', (e) => {
+    if (lightboxTouchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - lightboxTouchStartX;
+    lightboxTouchStartX = null;
+    if (Math.abs(dx) < 40) return;
+    if (dx < 0) lightboxNext();
+    else lightboxPrev();
+  });
 
   // --- Scroll reveal for landing page sections ---
 
