@@ -36,7 +36,12 @@
   }
 
   function isMobileDevice() {
-    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return true;
+    // iPadOS 13+ Safari reports its UA as a plain "Macintosh" desktop, with no
+    // "iPad" token at all. A real Mac has no touch points, so use that to tell
+    // the two apart and still route iPads through the native share sheet.
+    if (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1) return true;
+    return false;
   }
 
   function delay(ms) {
