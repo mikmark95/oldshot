@@ -17,6 +17,8 @@
   const intensityInput = document.getElementById('intensity');
   const grainInput = document.getElementById('grain');
   const vignetteInput = document.getElementById('vignette');
+  const styleSepiaBtn = document.getElementById('style-sepia-btn');
+  const styleBwBtn = document.getElementById('style-bw-btn');
 
   // Offscreen canvases used purely as scratch space, never attached to the DOM.
   const thumbScratchCanvas = document.createElement('canvas');
@@ -30,6 +32,7 @@
   let nextPhotoId = 0;
   let renderTimer = null;
   let batchInProgress = false;
+  let colorMode = 'sepia'; // 'sepia' | 'bw'
 
   function setStatus(msg) {
     statusMsg.textContent = msg || '';
@@ -59,17 +62,26 @@
       intensity: Number(intensityInput.value) / 100,
       grain: Number(grainInput.value) / 100,
       vignette: Number(vignetteInput.value) / 100,
+      blackAndWhite: colorMode === 'bw',
     };
+  }
+
+  function setColorMode(mode) {
+    if (mode === colorMode) return;
+    colorMode = mode;
+    styleSepiaBtn.classList.toggle('active', mode === 'sepia');
+    styleBwBtn.classList.toggle('active', mode === 'bw');
+    renderAllCards();
   }
 
   function clamp(v) {
     return v < 0 ? 0 : v > 255 ? 255 : v;
   }
 
-  // Applies the vintage effect (sepia, reduced contrast, grain, vignette)
-  // from a source ImageData onto a target canvas context.
+  // Applies the vintage effect (sepia or black & white, reduced contrast,
+  // grain, vignette) from a source ImageData onto a target canvas context.
   function applyVintage(srcImageData, width, height, targetCtx, settings) {
-    const { intensity, grain, vignette } = settings;
+    const { intensity, grain, vignette, blackAndWhite } = settings;
     const src = srcImageData.data;
     const out = new Uint8ClampedArray(src.length);
 
@@ -86,13 +98,20 @@
       g = (g - midpoint) * contrastFactor + midpoint;
       b = (b - midpoint) * contrastFactor + midpoint;
 
-      const sr = r * 0.393 + g * 0.769 + b * 0.189;
-      const sg = r * 0.349 + g * 0.686 + b * 0.168;
-      const sb = r * 0.272 + g * 0.534 + b * 0.131;
+      if (blackAndWhite) {
+        const gray = r * 0.299 + g * 0.587 + b * 0.114;
+        r = r + (gray - r) * intensity;
+        g = g + (gray - g) * intensity;
+        b = b + (gray - b) * intensity;
+      } else {
+        const sr = r * 0.393 + g * 0.769 + b * 0.189;
+        const sg = r * 0.349 + g * 0.686 + b * 0.168;
+        const sb = r * 0.272 + g * 0.534 + b * 0.131;
 
-      r = r + (sr - r) * intensity;
-      g = g + (sg - g) * intensity;
-      b = b + (sb - b) * intensity;
+        r = r + (sr - r) * intensity;
+        g = g + (sg - g) * intensity;
+        b = b + (sb - b) * intensity;
+      }
 
       out[i] = clamp(r);
       out[i + 1] = clamp(g);
@@ -512,6 +531,9 @@
   [intensityInput, grainInput, vignetteInput].forEach((input) => {
     input.addEventListener('input', scheduleRender);
   });
+
+  styleSepiaBtn.addEventListener('click', () => setColorMode('sepia'));
+  styleBwBtn.addEventListener('click', () => setColorMode('bw'));
 
   clearAllBtn.addEventListener('click', clearAll);
   downloadAllBtn.addEventListener('click', downloadAllPhotos);
